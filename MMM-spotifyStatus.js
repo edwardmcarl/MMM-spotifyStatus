@@ -1,6 +1,6 @@
 Module.register("MMM-spotifyStatus", {
   getScripts: function () {
-    return [this.file("SpotifyApi.js"), this.file("DomFactory.js")];
+    return [this.file("./js/DomFactory.js")];
   },
 
   getStyles: function () {
