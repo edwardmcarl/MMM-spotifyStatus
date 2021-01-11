@@ -1,0 +1,12 @@
+#albumArt {
+    width: 550px;
+    height: 550px;
+    outline: solid;
+}
+#trackName{
+    text-align: left;
+}
+#progressText {
+    color: dimgray;
+    text-align: left;
+}

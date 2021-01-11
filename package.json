@@ -1,0 +1,25 @@
+{
+  "name": "mmm-spotifystatus",
+  "version": "1.0.0",
+  "description": "Magic Mirror 2 module to display current Spotify track",
+  "main": "MMM-spotifyStatus.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/edwardmcarl/MMM-spotifyStatus.git"
+  },
+  "author": "Edward Carl",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/edwardmcarl/MMM-spotifyStatus/issues"
+  },
+  "homepage": "https://github.com/edwardmcarl/MMM-spotifyStatus#readme",
+  "dependencies": {
+    "axios": "^0.21.1",
+    "dayjs": "^1.9.7",
+    "eslint": "^7.17.0",
+    "spotify-web-api-node": "^5.0.0"
+  }
+}
