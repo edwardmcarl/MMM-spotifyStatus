@@ -1,6 +1,6 @@
 class DomFactory {
-  constructor(playerState, path) {
-    this.playerState = playerState;
+  constructor(data, path) {
+    this.playerState = data;
     this.path = path;
   }
 
@@ -16,13 +16,25 @@ class DomFactory {
 
     wrapper.appendChild(frame);
 
-    if (this.playerState === undefined || !this.playerState.active) {
-      this.buildLogoImg(frame);
+    if (this.playerState === undefined){
+      this.buildSpotifyLogoImg(frame);
+      return wrapper;
+    }
+
+    if (this.playerState.image === "BLUETOOTH") {
+      this.buildBluetoothLogoImg(frame);
+    } else if (this.playerState.image === "SPOTIFY") {
+      this.buildSpotifyLogoImg(frame);
     } else {
       this.buildAlbumImg(frame);
+    }
+
+    if (this.playerState.active) {
       this.buildTrackName(wrapper);
-      //wrapper.appendChild(track);
       this.buildProgressText(wrapper);
+    }
+    if (this.playerState.deviceName !== null) {
+      this.buildDeviceNotice(wrapper);
     }
 
     return wrapper;
@@ -31,11 +43,25 @@ class DomFactory {
   buildAlbumImg(frame) {
     let img = document.createElement("img");
     img.setAttribute("class", "albumArt");
-    img.setAttribute("src", this.playerState.imgUrl);
+    img.setAttribute("src", this.playerState.image);
     frame.appendChild(img);
   }
 
-  buildLogoImg(frame) {
+  buildBluetoothLogoImg(frame) {
+    let img = document.createElement("img");
+    img.setAttribute("class", "bluetoothLogo");
+    img.setAttribute("src", this.path + "/media/Bluetooth_FM_Color.png");
+    frame.appendChild(img);
+  }
+
+  buildDeviceNotice(frame) {
+    let deviceNotice = document.createElement("div");
+    deviceNotice.setAttribute("id", "deviceNotice");
+    deviceNotice.innerHTML = `Bluetooth connected: ${this.playerState.deviceName}`;
+    frame.appendChild(deviceNotice);
+  }
+
+  buildSpotifyLogoImg(frame) {
     let img = document.createElement("img");
     img.setAttribute("class", "spotifyLogo");
     img.setAttribute("src", this.path + "/media/Spotify_Icon_RGB_Green.png");
@@ -52,7 +78,9 @@ class DomFactory {
   buildProgressText(wrapper) {
     let text = document.createElement("div");
     text.setAttribute("id", "progressText");
-    text.innerHTML = `${this.playerState.progressStamp}/${this.playerState.durationStamp}`;
+    text.innerHTML = `${this.playerState.positionString}/${this.playerState.durationString}`;
     wrapper.appendChild(text);
   }
+
+  
 }

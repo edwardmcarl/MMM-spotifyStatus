@@ -19,6 +19,7 @@
   "dependencies": {
     "axios": "^0.21.1",
     "dayjs": "^1.9.7",
+    "dbus-next": "^0.9.1",
     "eslint": "^7.17.0",
     "spotify-web-api-node": "^5.0.0"
   }
