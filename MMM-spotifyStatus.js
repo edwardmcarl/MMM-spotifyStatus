@@ -1,4 +1,8 @@
 Module.register("MMM-spotifyStatus", {
+  defaults: {
+    name: "raspberrypi"
+  },
+  
   getScripts: function () {
     return [this.file("./js/DomFactory.js")];
   },
@@ -8,7 +12,7 @@ Module.register("MMM-spotifyStatus", {
   },
 
   getDom: function () {
-    let factory = new DomFactory(this.playerState, this.file(""));
+    let factory = new DomFactory(this.playerState, this.file(""), this.config.name);
     return factory.buildDom();
   },
 
@@ -22,6 +26,7 @@ Module.register("MMM-spotifyStatus", {
       };
       Log.info(pay);
       Log.info(this.config);
+      this.sendSocketNotification("SPOTIFYSTATUS_SEND_CONFIG", this.config);
       this.sendSocketNotification("SPOTIFYSTATUS_BEGIN_UPDATES", pay);
     }
   },

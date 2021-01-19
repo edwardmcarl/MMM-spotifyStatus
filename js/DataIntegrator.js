@@ -3,7 +3,9 @@ const duration = require("dayjs/plugin/duration");
 dayjs.extend(duration);
 
 module.exports = class DataIntegrator {
-  constructor() {}
+  constructor(name) {
+    this.name = name;
+  }
 
   integrateSpotifyBluetooth(data) {
     /*
@@ -13,51 +15,69 @@ module.exports = class DataIntegrator {
       - if Bluetooth is inactive, rely on Spotify for everything
     */
     //console.log(data);
-    if (data === undefined || !(data.spotify.active || data.bluetooth.active)) {
+    let spotifyActive, playerActive;
+    if (data !== undefined){
+      spotifyActive = (data.spotify.active && (data.spotify.device === this.name));
+      playerActive = spotifyActive || data.bluetooth.active;
+    }
+    if (data === undefined || !playerActive) {
       return {
         active: false,
         image: "SPOTIFY",
-        deviceName: null
+        bluetoothDevice: null
       };
     }
-    let position, duration, trackName, image, deviceName, active;
 
-    active = data.spotify.active || data.bluetooth.active;
+    let position, duration, trackName, image, bluetoothDevice, active, badInterface, spotifyDevice;
+
+    badInterface = data.bluetooth.badInterface;
+    bluetoothDevice = data.bluetooth.deviceAlias; // @todo have this interact with "connected"
+
+    spotifyDevice = data.spotify.device;
     position = data.spotify.position;
     duration = data.spotify.duration;
     trackName = data.spotify.trackName;
 
-    if (data.spotify.active) {
-      image = data.spotify.imgUrl;
+    // Determine image
+    if (data.bluetooth.connected && data.bluetooth.active) {
+      if (data.spotify.trackName === data.bluetooth.trackName) {
+        image = data.spotify.imgUrl;
+      } else {
+        image = "BLUETOOTH";
+      }
     } else {
-      image = "SPOTIFY";
-    }
-
-    deviceName = data.bluetooth.deviceName;
-    if (data.bluetooth.connected) { // @todo refactor out
-      if (data.bluetooth.active) { // if bluetooth is connected and active, it takes priority over Spotify
-        position = data.bluetooth.position;
-        duration = data.bluetooth.duration;
-        trackName = data.bluetooth.trackName;
-        //check for consensus with Spotify on track name to determine displayed image
-        if (data.bluetooth.trackName === data.spotify.trackName){
-          image = data.spotify.imageUrl;
-        } else {
-          image = "BLUETOOTH";
-        }
+      if (data.spotify.active) {
+        image = data.spotify.imgUrl;
+      } else {
+        image = "SPOTIFY";
       }
     }
-    position = dayjs.duration(position);
-    duration = dayjs.duration(duration);
-    let positionString = `${position.minutes()}:${position.seconds().toString().padStart(2, "0")}`;
-    let durationString = `${duration.minutes()}:${duration.seconds().toString().padStart(2, "0")}`;
+
+    // if bluetooth is connected and active, it takes priority over Spotify for track info
+    if (data.bluetooth.connected && data.bluetooth.active) {
+      position = data.bluetooth.position;
+      duration = data.bluetooth.duration;
+      trackName = data.bluetooth.trackName;
+    }
+
+    if (position !== null && duration !== null && duration !== 0) {
+      position = dayjs.duration(position);
+      duration = dayjs.duration(duration);
+      position = `${position.minutes()}:${position.seconds().toString().padStart(2, "0")}`;
+      duration = `${duration.minutes()}:${duration.seconds().toString().padStart(2, "0")}`;
+    } else {
+      position = null;
+      duration = null;
+    }
     let out = {
-      active: active,
-      positionString: positionString,
-      durationString: durationString,
+      badInterface: badInterface,
+      active: playerActive,
+      positionString: position,
+      durationString: duration,
       trackName: trackName,
       image: image,
-      deviceName: deviceName
+      bluetoothDevice: bluetoothDevice,
+      spotifyDevice: spotifyDevice
     };
     //console.log(out);
     return out;

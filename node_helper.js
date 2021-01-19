@@ -28,11 +28,15 @@ module.exports = NodeHelper.create({
     this.bluetoothPlayerInterface = undefined;
     this.currentDevice = undefined;
     
-    this.integrator = new DataIntegrator();
+    this.integrator = undefined;
     console.log("finished setup")
   },
 
   socketNotificationReceived: function (notification, payload) {
+    if (notification === "SPOTIFYSTATUS_SEND_CONFIG"){
+      this.config = payload;
+      this.integrator = new DataIntegrator(this.config.name);
+    }
     if (notification === "SPOTIFYSTATUS_BEGIN_UPDATES") {
       console.log("Received startup signal");
       if (this.api === undefined) {
@@ -50,7 +54,7 @@ module.exports = NodeHelper.create({
           let apiResult = await this.api.getMyCurrentPlaybackState();
           let bluetoothData = await this.getBluetoothData();
           let spotifyData = this.processSpotifyData(apiResult.body);
-          console.log(spotifyData);
+          //console.log(spotifyData);
           let payload = this.integrator.integrateSpotifyBluetooth({bluetooth: bluetoothData, spotify: spotifyData});
           this.sendSocketNotification("SPOTIFYSTATUS_API_RESULTS", payload);
         }, 1000);
@@ -67,31 +71,33 @@ module.exports = NodeHelper.create({
           console.log("no devices found!")
         }
 
-        for (let i = 0; i < 1/* r.nodes.length */; i++){
-
+        //For each device already paired on startup,
+        for (let i = 0; i <  r.nodes.length; i++){
           let deviceName = r.nodes[i];
-          this.deviceStates[deviceName] = {connected: false, playerListenerCreated: false};
-          anyDevices = true;
+
           let deviceTopNode = await this.bus.getProxyObject("org.bluez", deviceName)
-            .catch(err => console.log(err));
-          //console.log(deviceTopNode);
+            .catch(err => {console.log(`No device interface found for device ${deviceName}`)});
           let devicePlayerNode = await this.bus.getProxyObject("org.bluez", deviceName + "/player0")
             .catch(err => {console.log(`No player found for device ${deviceName}`)});
-          //console.log(devicePlayerNode)
           let deviceProperties = deviceTopNode.getInterface("org.freedesktop.DBus.Properties");
           
-         
+
+          //Set human-legible device alias
+          this.deviceStates[deviceName] = {
+            connected: false, 
+            alias: (await deviceProperties.Get("org.bluez.Device1", "Alias")).value
+          };         
+      
+          //Try to connect to this device and read its player state
           try {
-            this.setBluetoothInterface(devicePlayerNode, deviceName);
-          } catch (err){
+            await this.setBluetoothInterface(deviceTopNode, devicePlayerNode, deviceName);
+          } catch (err) {
             console.log(`No player found on startup for ${deviceName}`)
           }
 
+          //Set a listener for changes in this device's connection state
           deviceProperties.on("PropertiesChanged", async (iface, changed, invalidated) => {
-            //console.log("PROPERTY CHANGED")
-            //console.log(iface);
             if (iface === "org.bluez.Device1") {
-              //console.log(changed);
               for (let property of Object.keys(changed)){
                 if (property === "Connected") {
                   let x = changed[property];
@@ -100,16 +106,16 @@ module.exports = NodeHelper.create({
                       let iterations = 0;
                       let retries = setInterval(async () => {
                         try{
-                          let updatedDevicePlayerNode = await this.bus.getProxyObject("org.bluez", deviceName + "/player0")
-                          this.setBluetoothInterface(updatedDevicePlayerNode, deviceName);
+                          let updatedDeviceTopNode = await this.bus.getProxyObject("org.bluez", deviceName);
+                          let updatedDevicePlayerNode = await this.bus.getProxyObject("org.bluez", deviceName + "/player0");
+                          await this.setBluetoothInterface(updatedDeviceTopNode, updatedDevicePlayerNode, deviceName);
                           clearInterval(retries);
-                          setInterval(async () => console.log(await this.getBluetoothData()), 4000);
                         } catch (err) {
                           console.log("retrying...")
                           iterations = iterations + 1;
-                          if (iterations > 15){
+                          if (iterations > 15) {
                             clearInterval(retries);
-                            console.log(`Listener creation timed out for ${deviceName}. Maybe disconnect and reconnect? Final error:`)
+                            console.log(`Listener creation timed out for ${deviceName}. Maybe disconnect and reconnect? Final error:`);
                             console.log(err);
                           }
                         }
@@ -128,31 +134,31 @@ module.exports = NodeHelper.create({
     }
   },
 
-  setBluetoothInterface: function(playerNode, deviceName) {
+  setBluetoothInterface: async function(deviceNode, playerNode, deviceName) {
     let mediaPlayer = playerNode.getInterface("org.freedesktop.DBus.Properties");
     console.log(`Successfully created player interface to ${deviceName}`);
     this.bluetoothPlayerInterface = mediaPlayer;
-    //console.log(this.bluetoothPlayerInterface);
-    //this.currentDevice = deviceName;
     this.deviceStates[deviceName].connected = true;
+
   },
 
-  isBluetoothConnected: function(){
+  isBluetoothConnected: function() {
     for (let deviceName of Object.keys(this.deviceStates)){
       if (this.deviceStates[deviceName].connected){
-        return {connected: true, deviceName: deviceName};
+        return {connected: true, deviceAlias: this.deviceStates[deviceName].alias};
       }
     }
-    return {connected: false, deviceName: null};
+    return {connected: false, deviceAlias: null};
   },
 
   getBluetoothData: async function () {  //@todo refactor heavily
     let connectionStatus = this.isBluetoothConnected();
     if (!connectionStatus.connected){
       return {
+        badInterface: false,
         connected: false,
         active: null,
-        deviceName: null,
+        deviceAlias: null,
         trackName: null,
         progress: null,
         duration: null
@@ -161,9 +167,10 @@ module.exports = NodeHelper.create({
     if (this.bluetoothPlayerInterface === undefined){
       console.error("Connected to device , but no interface established!")
       return {
+        badInterface: true,
         connected: false,
         active: null,
-        deviceName: null,
+        deviceAlias: null,
         trackName: null,
         progress: null,
         duration: null
@@ -171,19 +178,53 @@ module.exports = NodeHelper.create({
     }
     
     // otherwise, assume we have the right interface selected
-    let positionVariant = await this.bluetoothPlayerInterface.Get("org.bluez.MediaPlayer1", "Position");
-    let trackVariant = await this.bluetoothPlayerInterface.Get("org.bluez.MediaPlayer1", "Track");
+    let position, track, duration;
+    let badInterface = false;
+    let positionVariant;
     let active = true;
-    if (trackVariant.value.Title.value === "Not Provided"){
+    try { 
+      positionVariant = await this.bluetoothPlayerInterface.Get("org.bluez.MediaPlayer1", "Position");
+      //console.log(positionVariant);
+      position = positionVariant.value;
+    } catch (err) {
+      badInterface = true;
+    }
+    try {
+      position = positionVariant.value
+    } catch (err) {
+      position = null;
+    }
+    let trackVariant;
+    try {
+      trackVariant = await this.bluetoothPlayerInterface.Get("org.bluez.MediaPlayer1", "Track");
+      //console.log(trackVariant);  
+    } catch (err) {
+      active = false;
+      badInterface = true;
+    }
+    try {
+      track = trackVariant.value.Title.value;
+    } catch (err){
+      track = null;
+    }
+    try {
+      duration = trackVariant.value.Duration.value
+    } catch (err) {
+      duration = null;
+    }
+
+  
+    if (track === "Not Provided"){
       active = false;
     }
     return {
+      badInterface: badInterface,
       connected: true,
       active: active,
-      deviceName: connectionStatus.deviceName,
-      trackName: trackVariant.value.Title.value,
-      position: positionVariant.value,
-      duration: trackVariant.value.Duration.value
+      deviceAlias: connectionStatus.deviceAlias,
+      trackName: track,
+      position: position,
+      duration: duration
     }
   },
 
@@ -198,14 +239,13 @@ module.exports = NodeHelper.create({
         duration: null
       };
     }
-    
+    let device = apiResult.device.name
     let progress = apiResult.progress_ms
     let stamp = apiResult.timestamp
     let duration = apiResult.item.duration_ms;
-    console.log(`Progress: ${progress}`)
-    console.log(`Stamp: ${stamp}`)
-    console.log(`Duration: ${duration}`)
+
     return {
+      device: device,
       active: true,
       imgUrl: apiResult.item.album.images[0].url,
       trackName: apiResult.item.name,

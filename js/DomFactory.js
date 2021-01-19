@@ -29,11 +29,11 @@ class DomFactory {
       this.buildAlbumImg(frame);
     }
 
-    if (this.playerState.active) {
+    if (this.playerState.active && !this.playerState.badInterface) {
       this.buildTrackName(wrapper);
       this.buildProgressText(wrapper);
     }
-    if (this.playerState.deviceName !== null) {
+    if (this.playerState.bluetoothDevice !== null) {
       this.buildDeviceNotice(wrapper);
     }
 
@@ -56,8 +56,9 @@ class DomFactory {
 
   buildDeviceNotice(frame) {
     let deviceNotice = document.createElement("div");
+    deviceNotice.setAttribute("class", "trackCaption");
     deviceNotice.setAttribute("id", "deviceNotice");
-    deviceNotice.innerHTML = `Bluetooth connected: ${this.playerState.deviceName}`;
+    deviceNotice.innerHTML = `Bluetooth connected: ${this.playerState.bluetoothDevice}`;
     frame.appendChild(deviceNotice);
   }
 
@@ -70,17 +71,20 @@ class DomFactory {
 
   buildTrackName(wrapper) {
     let trackName = document.createElement("div");
+    trackName.setAttribute("class", "trackCaption");
     trackName.setAttribute("id", "trackName");
-    trackName.innerHTML = this.playerState.trackName;
+    trackName.innerHTML = (this.playerState.trackName === null) ? "Unknown" : this.playerState.trackName;
     wrapper.appendChild(trackName);
   }
 
   buildProgressText(wrapper) {
+    if (this.playerState.positionString === null || this.playerState.durationString === null ){
+      return;
+    }
     let text = document.createElement("div");
+    text.setAttribute("class", "trackCaption")
     text.setAttribute("id", "progressText");
     text.innerHTML = `${this.playerState.positionString}/${this.playerState.durationString}`;
     wrapper.appendChild(text);
   }
-
-  
 }

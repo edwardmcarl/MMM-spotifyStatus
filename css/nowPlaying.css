@@ -1,22 +1,31 @@
 .albumArt {
     width: 100%;
     height: 100%;
-    }
+}
+
 .spotifyLogo{
     width: 60%;
     height: 60%;
     padding: 20%;
     
 }
+
+
+
+.trackCaption {
+    text-align: left;
+}
+
 #frame{
     width: 550px;
     height: 550px;
     outline:solid;
 }
-#trackName{
-    text-align: left;
-}
+
 #progressText {
     color: dimgray;
-    text-align: left;
+}
+
+#deviceNotice {
+    color: dimgray;
 }
