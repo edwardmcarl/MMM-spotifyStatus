@@ -1,10 +1,9 @@
 class DomFactory {
-  constructor(data, path) {
-    this.playerState = data;
+  constructor(path) {
     this.path = path;
   }
 
-  buildDom() {
+  buildDom(data) {
     let wrapper = document.createElement("div");
     let frame = document.createElement("div");
 
@@ -16,34 +15,34 @@ class DomFactory {
 
     wrapper.appendChild(frame);
 
-    if (this.playerState === undefined){
+    if (data === undefined){
       this.buildSpotifyLogoImg(frame);
       return wrapper;
     }
-
-    if (this.playerState.image === "BLUETOOTH") {
+    console.log(data);
+    if (data.image === "BLUETOOTH") {
       this.buildBluetoothLogoImg(frame);
-    } else if (this.playerState.image === "SPOTIFY") {
+    } else if (data.image === "SPOTIFY") {
       this.buildSpotifyLogoImg(frame);
     } else {
-      this.buildAlbumImg(frame);
+      this.buildAlbumImg(frame, data);
     }
-
-    if (this.playerState.active && !this.playerState.badInterface) {
-      this.buildTrackName(wrapper);
-      this.buildProgressText(wrapper);
+    
+    if (data.active) {
+      this.buildTrackName(wrapper, data);
+      this.buildProgressText(wrapper, data);
     }
-    if (this.playerState.bluetoothDevice !== null) {
-      this.buildDeviceNotice(wrapper);
+    if (data.bluetoothDevice !== null) {
+      this.buildDeviceNotice(wrapper, data);
     }
 
     return wrapper;
   }
 
-  buildAlbumImg(frame) {
+  buildAlbumImg(frame, data) {
     let img = document.createElement("img");
     img.setAttribute("class", "albumArt");
-    img.setAttribute("src", this.playerState.image);
+    img.setAttribute("src", data.image);
     frame.appendChild(img);
   }
 
@@ -54,11 +53,11 @@ class DomFactory {
     frame.appendChild(img);
   }
 
-  buildDeviceNotice(frame) {
+  buildDeviceNotice(frame, data) {
     let deviceNotice = document.createElement("div");
     deviceNotice.setAttribute("class", "trackCaption");
     deviceNotice.setAttribute("id", "deviceNotice");
-    deviceNotice.innerHTML = `Bluetooth connected: ${this.playerState.bluetoothDevice}`;
+    deviceNotice.innerHTML = `Bluetooth connected: ${data.bluetoothDevice}`;
     frame.appendChild(deviceNotice);
   }
 
@@ -69,22 +68,22 @@ class DomFactory {
     frame.appendChild(img);
   }
 
-  buildTrackName(wrapper) {
+  buildTrackName(wrapper, data) {
     let trackName = document.createElement("div");
     trackName.setAttribute("class", "trackCaption");
     trackName.setAttribute("id", "trackName");
-    trackName.innerHTML = (this.playerState.trackName === null) ? "Unknown" : this.playerState.trackName;
+    trackName.innerHTML = (data.trackName === null) ? "Unknown" : data.trackName;
     wrapper.appendChild(trackName);
   }
 
-  buildProgressText(wrapper) {
-    if (this.playerState.positionString === null || this.playerState.durationString === null ){
+  buildProgressText(wrapper, data) {
+    if (data.positionString === null || data.durationString === null ){
       return;
     }
     let text = document.createElement("div");
     text.setAttribute("class", "trackCaption")
     text.setAttribute("id", "progressText");
-    text.innerHTML = `${this.playerState.positionString}/${this.playerState.durationString}`;
+    text.innerHTML = `${data.positionString}/${data.durationString}`;
     wrapper.appendChild(text);
   }
 }

@@ -16,7 +16,7 @@ module.exports = class DataIntegrator {
     */
     //console.log(data);
     let spotifyActive, playerActive;
-    if (data !== undefined){
+    if (data !== undefined) {
       spotifyActive = (data.spotify.active && (data.spotify.device === this.name));
       playerActive = spotifyActive || data.bluetooth.active;
     }
@@ -28,30 +28,14 @@ module.exports = class DataIntegrator {
       };
     }
 
-    let position, duration, trackName, image, bluetoothDevice, active, badInterface, spotifyDevice;
+    let position, duration, positionString, durationString, trackName, image;
+    // Determine image
+    image = this.getImage(data)
 
-    badInterface = data.bluetooth.badInterface;
-    bluetoothDevice = data.bluetooth.deviceAlias; // @todo have this interact with "connected"
-
-    spotifyDevice = data.spotify.device;
+     // by default, use Spotify data
     position = data.spotify.position;
     duration = data.spotify.duration;
     trackName = data.spotify.trackName;
-
-    // Determine image
-    if (data.bluetooth.connected && data.bluetooth.active) {
-      if (data.spotify.trackName === data.bluetooth.trackName) {
-        image = data.spotify.imgUrl;
-      } else {
-        image = "BLUETOOTH";
-      }
-    } else {
-      if (data.spotify.active) {
-        image = data.spotify.imgUrl;
-      } else {
-        image = "SPOTIFY";
-      }
-    }
 
     // if bluetooth is connected and active, it takes priority over Spotify for track info
     if (data.bluetooth.connected && data.bluetooth.active) {
@@ -60,26 +44,50 @@ module.exports = class DataIntegrator {
       trackName = data.bluetooth.trackName;
     }
 
-    if (position !== null && duration !== null && duration !== 0) {
-      position = dayjs.duration(position);
-      duration = dayjs.duration(duration);
-      position = `${position.minutes()}:${position.seconds().toString().padStart(2, "0")}`;
-      duration = `${duration.minutes()}:${duration.seconds().toString().padStart(2, "0")}`;
-    } else {
-      position = null;
-      duration = null;
-    }
+    [positionString, durationString] = this.getProgressStrings(position, duration);
+
     let out = {
-      badInterface: badInterface,
       active: playerActive,
-      positionString: position,
-      durationString: duration,
+      positionString: positionString,
+      durationString: durationString,
       trackName: trackName,
       image: image,
-      bluetoothDevice: bluetoothDevice,
-      spotifyDevice: spotifyDevice
+      bluetoothDevice: data.bluetooth.deviceAlias,
+      spotifyDevice: data.spotify.device
     };
     //console.log(out);
     return out;
   }
+
+  getImage(data) {
+    console.log(data)
+    if (data.bluetooth.connected && data.bluetooth.active) {
+      if ((data.bluetooth.trackname !== null) && data.spotify.trackName === data.bluetooth.trackName) {
+        return data.spotify.imgUrl;
+      } else {
+        return "BLUETOOTH";
+      }
+    } else {
+      if (data.spotify.active) {
+        return data.spotify.imgUrl;
+      } else {
+        return "SPOTIFY";
+      }
+    }
+
+  }
+
+  getProgressStrings(positionMs, durationMs) {
+    if (positionMs !== null && durationMs !== null && durationMs !== 0) {
+      let positionDuration = dayjs.duration(positionMs);
+      let durationDuration = dayjs.duration(durationMs);
+      let positionString = `${positionDuration.minutes()}:${positionDuration.seconds().toString().padStart(2, "0")}`;
+      let durationString = `${durationDuration.minutes()}:${durationDuration.seconds().toString().padStart(2, "0")}`;
+      return [positionString, durationString];
+    } else {
+      return [null, null];
+    }
+  }
+
+
 };

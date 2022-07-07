@@ -155,7 +155,6 @@ module.exports = NodeHelper.create({
     let connectionStatus = this.isBluetoothConnected();
     if (!connectionStatus.connected){
       return {
-        badInterface: false,
         connected: false,
         active: null,
         deviceAlias: null,
@@ -167,7 +166,6 @@ module.exports = NodeHelper.create({
     if (this.bluetoothPlayerInterface === undefined){
       console.error("Connected to device , but no interface established!")
       return {
-        badInterface: true,
         connected: false,
         active: null,
         deviceAlias: null,
@@ -180,27 +178,19 @@ module.exports = NodeHelper.create({
     // otherwise, assume we have the right interface selected
     let position, track, duration;
     let badInterface = false;
-    let positionVariant;
+    let positionVariant, trackVariant;
     let active = true;
+
     try { 
       positionVariant = await this.bluetoothPlayerInterface.Get("org.bluez.MediaPlayer1", "Position");
-      //console.log(positionVariant);
       position = positionVariant.value;
-    } catch (err) {
-      badInterface = true;
-    }
-    try {
-      position = positionVariant.value
     } catch (err) {
       position = null;
     }
-    let trackVariant;
     try {
       trackVariant = await this.bluetoothPlayerInterface.Get("org.bluez.MediaPlayer1", "Track");
-      //console.log(trackVariant);  
     } catch (err) {
       active = false;
-      badInterface = true;
     }
     try {
       track = trackVariant.value.Title.value;
@@ -213,12 +203,10 @@ module.exports = NodeHelper.create({
       duration = null;
     }
 
-  
     if (track === "Not Provided"){
       active = false;
     }
     return {
-      badInterface: badInterface,
       connected: true,
       active: active,
       deviceAlias: connectionStatus.deviceAlias,
@@ -229,7 +217,6 @@ module.exports = NodeHelper.create({
   },
 
   processSpotifyData: function (apiResult) {
-
     if (apiResult.item === null || apiResult.item === undefined) {
       return {
         active: false,
